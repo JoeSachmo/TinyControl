@@ -11,7 +11,7 @@ import time
 
 class TinyControlServer:
     def __init__(self):
-        self.host = ''
+        self.host = "localhost"
         self.port = 54321
         self.backlog = 5
         self.size = 16
