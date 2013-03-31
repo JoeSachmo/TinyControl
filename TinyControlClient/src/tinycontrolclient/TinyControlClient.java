@@ -7,7 +7,6 @@ package tinycontrolclient;
 import java.net.*;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
-import java.util.Arrays;
 import java.util.ArrayList;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
@@ -25,6 +24,7 @@ public class TinyControlClient {
     static double lossRate;
     static double recRate;
     static int rtt;
+    static long recTime;
     static boolean noRecFlag;
     static boolean noSentFlag;
     static ScheduledThreadPoolExecutor fbTimer;
@@ -36,12 +36,14 @@ public class TinyControlClient {
     static class ExpireTimer implements Runnable {
         @Override
         public void run() {
-            if(noRecFlag) {
+            if(!noRecFlag) {
                 lossRate = calcLossRate();
                 recRate = calcRecRate();
                 try {sendFbPkt(); }
                 catch (Exception e) {};
+                noSentFlag = false;
             }
+            else noSentFlag = true;
             fbTimer.schedule(new ExpireTimer(), rtt, TimeUnit.SECONDS);
         }
     }
@@ -57,14 +59,12 @@ public class TinyControlClient {
         port = 54321;
         
         byte[] receiveData = new byte[1012];
-        byte[] sendData = new byte[16];
         history = new History();
         
         fbTimer = new ScheduledThreadPoolExecutor(1);
         
         //Connection
-        DatagramPacket connPacket = new DatagramPacket(sendData, sendData.length, IPAddress, port);
-        clientSocket.send(connPacket);
+        clientSocket.connect(IPAddress, port);
         
         boolean firstPkt = true;
         while(true) {
@@ -73,6 +73,8 @@ public class TinyControlClient {
             clientSocket.receive(receivePacket);
                         
             //Process
+            recTime = System.nanoTime();
+            noRecFlag = false;
             byte[] bytes = receivePacket.getData();
             ByteBuffer bb = ByteBuffer.wrap(bytes);
             bb.order(ByteOrder.LITTLE_ENDIAN);
@@ -83,14 +85,13 @@ public class TinyControlClient {
             if(firstPkt) {
                 lossRate = 0;
                 recRate = 0;
-                //send
-                noRecFlag = false;
+                sendFbPkt();
                 fbTimer.schedule(new ExpireTimer(), rtt, TimeUnit.SECONDS);
                 firstPkt = false;
             }
             
             else {
-                if((!noRecFlag) && (!updateHistory(seqNum, tStamp)))
+                if((!noSentFlag) && (!updateHistory(seqNum, tStamp)))
                     continue;
 
                 if(lossRate <= (lossRate = calcLossRate())) {
@@ -107,7 +108,7 @@ public class TinyControlClient {
         
         boolean lossEvent = false;
         
-        //Arrival of the expected pkt (no lost)
+        //Arrival of the expected pkt (no loss)
         if(seqNum-history.getCurrentSeq() == 1)
             history.setCurrentSeq(seqNum);
 
@@ -170,8 +171,8 @@ public class TinyControlClient {
         
         byte[] sendData = new byte[16];
         ByteBuffer bb = ByteBuffer.allocate(16).order(ByteOrder.LITTLE_ENDIAN);  
-        bb.putInt(257);
-        bb.putInt(1000);
+        bb.putInt(history.getCurrentTimeStamp());
+        bb.putInt((int)(System.nanoTime()-recTime));
         bb.putFloat((float)recRate);
         bb.putFloat((float)lossRate);
         sendData = bb.array();
@@ -179,6 +180,6 @@ public class TinyControlClient {
         //Feedback
         DatagramPacket sendPacket = new DatagramPacket(sendData, sendData.length, IPAddress, port);
         clientSocket.send(sendPacket);
-        
+        noRecFlag = true;
     }
 }
