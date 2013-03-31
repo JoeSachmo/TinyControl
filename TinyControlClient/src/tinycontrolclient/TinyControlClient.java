@@ -85,8 +85,11 @@ public class TinyControlClient {
             int seqNum = bb.getInt();
             int tStamp = bb.getInt();
             rtt = bb.getInt();
+            if(rtt<0) rtt=2;
 
             if(firstPkt) {
+                history.setCurrentSeq(seqNum);
+                history.setCurrentTimeStamp(tStamp);
                 lossRate = 0;
                 recRate = 0;
                 sendFbPkt();
@@ -95,10 +98,10 @@ public class TinyControlClient {
             }
             
             else {
-                if((!noSentFlag) && (!updateHistory(seqNum, tStamp)))
+                if((!updateHistory(seqNum, tStamp)) && (!noSentFlag))
                     continue;
 
-                if(lossRate <= (lossRate = calcLossRate())) {
+                if(lossRate < (lossRate = calcLossRate())) {
                     //Antecipates feedback timer expiration
                     fbTimer.remove(fbTimer.getQueue().peek());
                     fbTimer.schedule(new ExpireTimer(), 0, TimeUnit.NANOSECONDS);
@@ -113,9 +116,12 @@ public class TinyControlClient {
         boolean lossEvent = false;
         
         //Arrival of the expected pkt (no loss)
-        if(seqNum-history.getCurrentSeq() == 1)
+        if(seqNum-history.getCurrentSeq() == 1) {
             history.setCurrentSeq(seqNum);
-
+            history.setCurrentTimeStamp(tStamp);
+            //System.out.println(seqNum);
+        }
+            
         //Pkt out of sequence
         else if(seqNum-history.getCurrentSeq() > 1) {
             for(int i=history.getCurrentSeq()+1; i<seqNum; i++) {
@@ -128,6 +134,7 @@ public class TinyControlClient {
                 }
             }
             history.setCurrentSeq(seqNum);
+            history.setCurrentTimeStamp(tStamp);
         }
 
         //Previously lost pkt
@@ -180,7 +187,7 @@ public class TinyControlClient {
         bb.putFloat((float)recRate);
         bb.putFloat((float)lossRate);
         sendData = bb.array();
-        System.out.println(history.getCurrentTimeStamp() + " " + recRate + " " + lossRate);
+        System.out.println(history.getCurrentSeq() + " " + recRate + " " + lossRate);
 
         //Feedback
         DatagramPacket sendPacket = new DatagramPacket(sendData, sendData.length, IPAddress, port);
