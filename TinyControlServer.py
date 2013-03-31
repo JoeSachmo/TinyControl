@@ -37,7 +37,8 @@ class TinyControlServer:
             for x in inputready:
                 if x == self.server:
                     f = open("a.mp3", "rb")
-                    c = Client(self.server.accept(), f)
+                    data, address = self.server.recvfrom(16)
+                    c = Client(address, f)
                     c.start()
                     self.threads.append(c)
                 elif x == sys.stdin:
@@ -50,8 +51,8 @@ class TinyControlServer:
 class Client(threading.Thread):
     def __init__(self, client_address, file):
         threading.Thread.__init__(self)
-        self.client = client_address[0]
-        self.address = clinet_address[1]
+        self.client = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        self.client.connect(client_address)
         self.file = file
         self.loss = 0
         self.recvset = {}
@@ -73,7 +74,7 @@ class Client(threading.Thread):
             if (time.time() - self.lastset - self.Nofeedback) > 0:
                 #self.timerExpired()
                 pass
-            inputs,outputs,excepts = select.select([self.client], [], [])
+            inputs,outputs,excepts = select.select([self.client], [], [], 0)
             for x in inputs:
                 y = self.client.recv(16)
                 self.feedback(y)
@@ -81,7 +82,7 @@ class Client(threading.Thread):
             while (time.time() - begin) < 0.5:
                 pps = self.X/1000
                 wait = 0.5/pps/2
-                pack = formPacket()
+                pack = self.formPacket()
                 if pack == None:
                     running = False
                 else:

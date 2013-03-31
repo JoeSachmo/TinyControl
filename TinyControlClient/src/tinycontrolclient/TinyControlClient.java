@@ -59,12 +59,16 @@ public class TinyControlClient {
         port = 54321;
         
         byte[] receiveData = new byte[1012];
+        byte[] sendData = new byte[16];
         history = new History();
         
         fbTimer = new ScheduledThreadPoolExecutor(1);
         
         //Connection
-        clientSocket.connect(IPAddress, port);
+        //clientSocket.connect(IPAddress, port);
+        DatagramPacket connPacket = new DatagramPacket(sendData, sendData.length, IPAddress, port);
+        clientSocket.send(connPacket);
+
         
         boolean firstPkt = true;
         while(true) {
@@ -176,6 +180,7 @@ public class TinyControlClient {
         bb.putFloat((float)recRate);
         bb.putFloat((float)lossRate);
         sendData = bb.array();
+        System.out.println(history.getCurrentTimeStamp() + " " + recRate + " " + lossRate);
 
         //Feedback
         DatagramPacket sendPacket = new DatagramPacket(sendData, sendData.length, IPAddress, port);
