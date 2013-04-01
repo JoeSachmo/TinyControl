@@ -13,6 +13,8 @@ public class History {
 
     private int currentSeq;
     private int currentTimeStamp;
+    private int prevRtt;
+    private int recCount;
     private ArrayList<HistoryEntry> entries;
     private ArrayList<Integer> intervals;
 
@@ -64,5 +66,21 @@ public class History {
 
     public ArrayList<Integer> getIntervals() {
         return intervals;
+    }
+
+    public int getPrevRtt() {
+        return prevRtt;
+    }
+
+    public void setPrevRtt(int prevRtt) {
+        this.prevRtt = prevRtt;
+    }
+
+    public int getRecCount() {
+        return recCount;
+    }
+
+    public void setRecCount(int recCount) {
+        this.recCount = recCount;
     }
 }

@@ -38,7 +38,7 @@ public class TinyControlClient {
         public void run() {
             if(!noRecFlag) {
                 lossRate = calcLossRate();
-                recRate = calcRecRate();
+                recRate = history.getRecCount()/history.getPrevRtt();
                 try {sendFbPkt(); }
                 catch (Exception e) {};
                 noSentFlag = false;
@@ -79,13 +79,17 @@ public class TinyControlClient {
             //Process
             recTime = System.nanoTime();
             noRecFlag = false;
+            history.setRecCount(history.getRecCount()+1);
+            history.setPrevRtt(history.getPrevRtt()+rtt);
+            port = receivePacket.getPort();
             byte[] bytes = receivePacket.getData();
             ByteBuffer bb = ByteBuffer.wrap(bytes);
             bb.order(ByteOrder.LITTLE_ENDIAN);
             int seqNum = bb.getInt();
             int tStamp = bb.getInt();
             rtt = bb.getInt();
-            if(rtt<0) rtt=2;
+            //System.out.println(rtt);
+            if(rtt<0) rtt=1;
 
             if(firstPkt) {
                 history.setCurrentSeq(seqNum);
@@ -172,10 +176,6 @@ public class TinyControlClient {
         }
         
         return (w_tot/i_tot);
-    }
-    
-    private static double calcRecRate() {
-        return 1.2;
     }
     
     private static void sendFbPkt() throws Exception{
